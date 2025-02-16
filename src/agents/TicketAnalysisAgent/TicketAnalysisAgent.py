@@ -1,4 +1,4 @@
-from models import TicketCategory, Priority, TicketAnallysis
+from models import TicketCategory, Priority, TicketAnalysis
 from typing import List, Optional, Dict, Any
 
 class TicketAnalysisAgent:
@@ -9,7 +9,7 @@ class TicketAnalysisAgent:
         self,
         ticket_content: str,
         customer_history: Optional[Dict[str, Any]] = None
-    ) -> TicketAnallysis:
+    ) -> TicketAnalysis:
         """
         Implement:
         1. Ticket Classification:
@@ -32,7 +32,7 @@ class TicketAnalysisAgent:
             "suggested_response_type": str
         }
         """
-        return TicketAnallysis(
+        return TicketAnalysis(
             category = self.get_category(ticket_content),
             priority = self.get_priority(ticket_content),
             key_points = self.get_key_points(ticket_content),

@@ -15,7 +15,7 @@ class Priority(Enum):
     CRITICAL = 4
 
 @dataclass
-class TicketAnallysis:
+class TicketAnalysis:
     category : TicketCategory
     priority : Priority
     key_points : List[str]
@@ -31,4 +31,8 @@ class ResponseSuggestion:
 
 @dataclass
 class TicketResolution:
+    pass
+
+@dataclass
+class SupportTicket:
     pass

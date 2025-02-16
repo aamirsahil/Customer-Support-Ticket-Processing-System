@@ -1,5 +1,6 @@
 from TicketAnalysisAgent import TicketAnalysisAgent
 from ResponseAgent import ResponseAgent
+from models import SupportTicket, TicketResolution
 
 class TicketProcessor:
     def __init__(self):
