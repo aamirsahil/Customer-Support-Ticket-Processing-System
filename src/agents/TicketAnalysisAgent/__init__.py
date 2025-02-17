@@ -1,1 +1,1 @@
-from TicketAnalysisAgent import TicketAnalysisAgent
+from .TicketAnalysisAgent import TicketAnalysisAgent
