@@ -1,13 +1,5 @@
-# import sys
-# import os
+from ...models import TicketCategory, Priority, TicketAnalysis
 
-# # Get the parent directory of the current script
-# parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-# # Append the parent directory to sys.path
-# sys.path.append(parent_dir)
-
-from models import TicketCategory, Priority, TicketAnalysis
 from typing import List, Optional, Dict, Any
 import re
 import spacy
@@ -18,11 +10,12 @@ classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnl
 
 class TicketAnalysisAgent:
     def __init__(self):
+        # urgency word patterns
         self.urgency_pattern = re.compile(
             r"\b(ASAP|urgent|immediately|critical|emmergency|right away)\b",
             re.IGNORECASE
         )
-
+        # buisiness impact words
         self.impact_words = {
             "payroll" : 2.0,
             "revenue" : 1.8,
@@ -30,7 +23,7 @@ class TicketAnalysisAgent:
             "demo" : 1.5,
             "client" : 1.3
         }
-
+        # customer role weights
         self.role_weights = {
             "ceo" : 2.0, "cfo" : 2.0, "cto" : 2.0,
             "director" : 1.7, "manager" : 1.3

@@ -1,4 +1,4 @@
-from models import ResponseSuggestion
+from ...models import ResponseSuggestion
 
 class ResponseAgent:
     async def generate_response(
