@@ -1,0 +1,139 @@
+[
+    {
+        "id": "TKT-001",
+        "subject": "URGENT: Production Database Offline",
+        "content": "Critical outage! Production database cluster down since 2:00 AM. Customers can't place orders.\nContact: +44 7890 123456\n\n-Sent from mobile",
+        "customer_info": {
+            "role": "CTO",
+            "plan": "Enterprise",
+            "company_size": "1000+"
+        }
+    },
+    {
+        "id": "TKT-002",
+        "subject": "Login problems",
+        "content": "Cant login to account. Error keeps saying password wrong but I'm sure it's right.",
+        "customer_info": {
+            "role": "End User",
+            "plan": "Basic"
+        }
+    },
+    {
+        "id": "TKT-003",
+        "subject": "Billing Dispute",
+        "content": "Your system charged us $15,642 instead of $12,000! Need immediate refund and explanation.\n\n-Jane Doe\nCFO",
+        "customer_info": {
+            "role": "Finance Director",
+            "plan": "Enterprise"
+        }
+    },
+    {
+        "id": "TKT-004",
+        "subject": "Feature Not Working",
+        "content": "The export to PDF function just spins forever. Tried different browsers.",
+        "customer_info": {
+            "role": "Operations Manager",
+            "plan": "Professional",
+            "company_size": "200-500"
+        }
+    },
+    {
+        "id": "TKT-005",
+        "subject": "Security Alert!",
+        "content": "Unknown IP addresses from China accessing admin accounts. Freeze all logins immediately!",
+        "customer_info": {
+            "role": "Security Officer",
+            "plan": "Enterprise"
+        }
+    },
+    {
+        "id": "TKT-006",
+        "subject": "Mobile App Crash",
+        "content": "App crashes immediately after splash screen on iOS 16.4.1. Urgent fix needed!",
+        "customer_info": {
+            "role": "Mobile User",
+            "plan": "Professional"
+        }
+    },
+    {
+        "id": "TKT-007",
+        "subject": "Data Missing",
+        "content": "All customer entries from March 15-20 disappeared overnight. Recovery required ASAP!",
+        "customer_info": {
+            "role": "Data Manager",
+            "plan": "Enterprise"
+        }
+    },
+    {
+        "id": "TKT-008",
+        "subject": "API Timeouts",
+        "content": "GET /v3/users endpoint timing out 75% of requests. Response time increased from 200ms to 12s",
+        "customer_info": {
+            "role": "Developer",
+            "plan": "Professional"
+        }
+    },
+    {
+        "id": "TKT-009",
+        "subject": "Wrong Language Display",
+        "content": "Dashboard showing Chinese characters instead of English. How to fix?",
+        "customer_info": {
+            "role": "Regional Manager",
+            "plan": "Professional"
+        }
+    },
+    {
+        "id": "TKT-010",
+        "subject": "Password Reset Loop",
+        "content": "Stuck in endless password reset cycle. Verification emails never arrive.",
+        "customer_info": {
+            "role": "Customer Support",
+            "plan": "Basic"
+        }
+    },
+    {
+        "id": "TKT-011",
+        "subject": "Payment Failed",
+        "content": "Critical: Subscription renewal failed 3x. Service will terminate tomorrow!",
+        "customer_info": {
+            "role": "Account Owner",
+            "plan": "Enterprise"
+        }
+    },
+    {
+        "id": "TKT-012",
+        "subject": "Slow Performance",
+        "content": "System became extremely slow after latest update. Almost unusable.",
+        "customer_info": {
+            "role": "User",
+            "plan": "Basic"
+        }
+    },
+    {
+        "id": "TKT-013",
+        "subject": "Feature Request: Dark Mode",
+        "content": "Please add dark theme option. Current bright UI causes eye strain.",
+        "customer_info": {
+            "role": "Designer",
+            "plan": "Professional"
+        }
+    },
+    {
+        "id": "TKT-014",
+        "subject": "Broken Links",
+        "content": "All documentation links in UI return 404 errors. Need immediate fix.",
+        "customer_info": {
+            "role": "Technical Writer",
+            "plan": "Enterprise"
+        }
+    },
+    {
+        "id": "TKT-015",
+        "subject": "Duplicate Charges",
+        "content": "Charged 3 times for same subscription. Transaction IDs: TXN-789, TXN-790, TXN-791",
+        "customer_info": {
+            "role": "Small Business Owner",
+            "plan": "Professional"
+        }
+    }
+]

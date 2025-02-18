@@ -1,4 +1,4 @@
-from ...models import TicketCategory, Priority, TicketAnalysis
+from src.models import TicketAnalysis, TicketCategory, Priority
 
 from typing import List, Optional, Dict, Any
 import re
@@ -12,7 +12,7 @@ class TicketAnalysisAgent:
     def __init__(self):
         # urgency word patterns
         self.urgency_pattern = re.compile(
-            r"\b(ASAP|urgent|immediately|critical|emmergency|right away)\b",
+            r"\b(asap|urgent|immediately|critical|emmergency|right away|severe)\b",
             re.IGNORECASE
         )
         # buisiness impact words
