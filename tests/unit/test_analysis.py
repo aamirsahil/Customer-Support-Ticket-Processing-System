@@ -8,12 +8,12 @@ ticket_analysis_agent = TicketAnalysisAgent()
 # function to get ticket sample text
 def open_ticket_sample():
     
-    with open('..data/test_template/ticket_sample.json', 'r') as file:
+    with open('tests/data/test_template/ticket_sample.json', 'r') as file:
         data = json.load(file)
     
-    text = f"<|role|> {data[0]['customer_info']['role']} <|role|>
+    text = f"""<|role|> {data[0]['customer_info']['role']} <|role|>
             <|subject|> {data[0]['subject']} <|subject|>
-            <|content|> {data[0]['content']} <|content|>" 
+            <|content|> {data[0]['content']} <|content|>""" 
     
     return text
 
@@ -24,9 +24,9 @@ def test_preprocess_text():
     # act
     result = ticket_analysis_agent._preprocess_text(text)
     # assert
-    expected = "<|role|> cto <|role|>\
-                <|subject|> urgent: production database offline <|subject|>\
-                <|content|> critical outage! production database cluster down since 2:00 am. customers can't place orders. contact: +44 7890 123456  -sent from mobile <|content|>"
+    expected = """<|role|> admin <|role|>
+                <|subject|> cannot access admin dashboard <|subject|>
+                <|content|> hi support, since this morning i can't access the admin dashboard. i keep getting a 403 error. i need this fixed asap as i need to process payroll today.  thanks, john smith finance director <|content|>"""
     
     assert result == expected, f"Expected = {expected} || Result = {result}"
 
@@ -37,7 +37,7 @@ def test_classify_ticket():
     # act
     result = ticket_analysis_agent._classify_ticket(text)
     # assert
-    expected = TicketCategory.TECHNICAL
+    expected = TicketCategory.ACCESS
     assert result == expected, f"Expected = {expected} || Result {result}"
 
 # testing urgency detection
@@ -47,13 +47,14 @@ def test_detect_urgency():
     # act
     result = ticket_analysis_agent._detect_urgency(text)
     # assert
-    expected = ['urgent', 'critical']
+    expected = ['403', 'asap']
     assert result == expected, f"Expected = {expected} || Result = {result}"
 
 def test_calculate_priority():
     # arrange
     text = open_ticket_sample()
-    dummy_urgency_indicators = ['urgent', 'critical']
+    dummy_urgency_indicators = ['403', 'asap']
+    dummy_customer_info = {"role" : "finance director"}
 
     priority = ticket_analysis_agent._calculate_priority(
                 text,

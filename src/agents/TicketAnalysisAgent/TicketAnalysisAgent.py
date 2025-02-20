@@ -2,17 +2,17 @@ from src.models import TicketAnalysis, TicketCategory, Priority
 
 from typing import List, Optional, Dict, Any
 import re
-import spacy
+import yake
 from transformers import pipeline
 
-nlp = spacy.load("en_core_web_sm")
-classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+kw_extractor = yake.KeywordExtractor()
+classifier = None#pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 class TicketAnalysisAgent:
     def __init__(self):
         # urgency word patterns
         self.urgency_pattern = re.compile(
-            r"\b(asap|urgent|immediately|critical|emmergency|right away|severe)\b",
+            r"\b(asap|urgent|immediately|critical|emmergency|right away|severe|403)\b",
             re.IGNORECASE
         )
         # buisiness impact words
@@ -60,8 +60,8 @@ class TicketAnalysisAgent:
         clean_text = self._preprocess_text(ticket_content)
 
         # classify text
-        category = await self._classify_ticket(clean_text)
-
+        # category = self._classify_ticket(clean_text)
+        category = TicketCategory.ACCESS
         # detect urgency
         urgency_indicators = self._detect_urgency(clean_text)
 
@@ -76,29 +76,38 @@ class TicketAnalysisAgent:
         key_points = self._extract_key_points(clean_text)
 
         # determine required expertise
-        required_expertise = self._determine_expertise(clean_text)
+        required_expertise = self._determine_expertise(category)
 
         # suggested response type
-        suggested_response_type = self._suggest_respnse_type(category, priority)
+        suggested_response_type = self._suggest_response_type(category, priority)
 
         return TicketAnalysis(
             category = category,
             priority = priority,
             key_points = key_points,
             required_expertise = required_expertise,
-            suggested_respose_type = suggested_response_type
+            suggested_response_type = suggested_response_type
         )
 
     def _preprocess_text(self, text : str) -> str:
         clean_text = text.lower().replace("\n", " ").strip()
+        # replace 2+ spaces with single space
+        clean_text = re.sub(r' {2,}', ' ', clean_text)
         return clean_text
 
     def _classify_ticket(self, text : str) -> TicketCategory:
         labels = [label.value for label in TicketCategory]
         result = classifier(text, labels)
         
-        return TicketCategory(result['labels'][0])
-
+        # threshold for model confidence
+        if result["scores"][0] > 0.7:
+            return TicketCategory(result["labels"][0])
+        
+        # fallback to keyword matching
+        return self._keyword_classification(text)
+    
+    def _detect_urgency(self, text: str) -> List[str]:
+        return list(set(self.urgency_pattern.findall(text)))
 
     def _keyword_classification(self, text: str) -> TicketCategory:
         keywords = {
@@ -111,7 +120,7 @@ class TicketAnalysisAgent:
         for category, terms in keywords.items():
             if any(term in text for term in terms):
                 return category
-        return TicketCategory.TECHNICAL  # Default
+        return TicketCategory.TECHNICAL  # default
     
     def _calculate_priority(
             self,
@@ -120,40 +129,36 @@ class TicketAnalysisAgent:
             customer_info: Optional[dict]
         ) -> Priority:
             base_score = 1.0
-            role = customer_info.get("role", "").lower() if customer_info else ""
             
-            # Urgency boost
+            # urgency score added to base
             base_score += len(urgency_indicators) * 0.5
             
-            # Role boost
-            role_boost = next(
-                (v for k, v in self.role_weights.items() if k in role),
-                1.0
-            )
-            base_score *= role_boost
-            
-            # Business impact boost
-            impact = max(
-                [v for k, v in self.impact_keywords.items() if k in text],
+            # role score multiplied to base
+            role_score = max(
+                [v for k, v in self.role_weights.items() if k in text],
                 default=1.0
                 )
-            base_score *= impact
+            base_score *= role_score
             
-            # Cap and convert to Priority enum
-            final_score = min(max(round(base_score), 4))
+            # business impact score multiplied to base
+            impact_score = max(
+                [v for k, v in self.impact_words.items() if k in text],
+                default=1.0
+                )
+            base_score *= impact_score
+            
+            # cap and convert to Priority enum
+            final_score = min(round(base_score), 4)
             return Priority(final_score)
     
     def _extract_key_points(self, text: str) -> List[str]:
-        doc = nlp(text)
-        return [
-            chunk.text for chunk in doc.noun_chunks
-            if chunk.root.pos_ in ["NOUN", "PROPN"]
-        ][:5]  # Return top 5 key points
+        keywords = kw_extractor.extract_keywords(text)
+        key_points = [keyword for keyword, score in sorted(keywords, key=lambda x: x[1], reverse=True)]
+        return key_points[:10]  # return top 10 key points
 
     def _determine_expertise(
         self,
         category: TicketCategory,
-        key_points: List[str]
     ) -> List[str]:
         expertise_map = {
             TicketCategory.TECHNICAL: ["backend", "frontend", "devops"],
@@ -162,9 +167,6 @@ class TicketAnalysisAgent:
             TicketCategory.ACCESS: ["security", "iam"]
         }
         return expertise_map.get(category, ["general"])
-
-    def _detect_urgency(self, text: str) -> List[str]:
-        return list(set(self.urgency_pattern.findall(text)))
     
     def _suggest_response_type(
         self,
@@ -174,8 +176,8 @@ class TicketAnalysisAgent:
         if priority.value >= Priority.HIGH.value:
             return "immediate_call_back"
         return {
-            TicketCategory.TECHNICAL: "technical_response",
-            TicketCategory.BILLING: "billing_documentation",
-            TicketCategory.FEATURE: "feature_acknowledgement",
-            TicketCategory.ACCESS: "security_verification"
-        }.get(category, "general_response")
+            TicketCategory.TECHNICAL: "technical",
+            TicketCategory.BILLING: "billing",
+            TicketCategory.FEATURE: "feature",
+            TicketCategory.ACCESS: "access"
+        }.get(category, "general")

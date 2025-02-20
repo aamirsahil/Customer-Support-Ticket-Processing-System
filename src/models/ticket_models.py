@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 class TicketCategory(Enum):
@@ -13,6 +13,13 @@ class Priority(Enum):
     MEDIUM = 2
     HIGH = 3
     CRITICAL = 4
+
+@dataclass
+class SupportTicket:
+    id: str
+    subject: str
+    content: str
+    customer_info: Dict[str, Any]
 
 @dataclass
 class TicketAnalysis:
@@ -31,8 +38,10 @@ class ResponseSuggestion:
 
 @dataclass
 class TicketResolution:
-    pass
-
-@dataclass
-class SupportTicket:
-    pass
+    ticket_id: str
+    response_text: str
+    status: str  # "completed", "needs_approval", "failed"
+    error: Optional[str]
+    analysis: Optional[Any]
+    response: Optional[Any]
+    context_snapshot: Dict[str, Any]

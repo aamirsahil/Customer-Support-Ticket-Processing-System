@@ -9,7 +9,6 @@ from textblob import TextBlob
 class ResponseAgent:
     def __init__(self):
         self.nlp = spacy.load("en_core_web_sm")
-        self.tech_jargon = ["SLA", "API", "latency", "throughput"]
         self.approval_triggers = ["credit", "refund", "compensation", "legal"]
 
     async def generate_response(
@@ -45,20 +44,14 @@ class ResponseAgent:
             ticket_analysis,
             context
         )
-        
-        final_text = self._adjust_technical_level(
-            filled_template,
-            context.get("customer_info", {})
-        )
-        final_text = self._personlize_greeting(final_text, context)
 
         # finding confidence and approval
-        confidence = self._calculate_confidence(final_text, ticket_analysis)
-        requires_approval = self._requires_approval(final_text, ticket_analysis)
+        confidence = self._calculate_confidence(filled_template, ticket_analysis)
+        requires_approval = self._requires_approval(filled_template, ticket_analysis, confidence)
         actions = self._generate_actions(ticket_analysis, context)
 
         return ResponseSuggestion(
-            response_text=final_text,
+            response_text=filled_template,
             confidence_score=confidence,
             requires_approval=requires_approval,
             suggested_actions=actions
@@ -75,7 +68,7 @@ class ResponseAgent:
             return templates[template_key]
         
         # category-based match
-        category_template = f"{analysis.category.value}_response"
+        category_template = f"{analysis.category.value}"
         if category_template in templates:
             return templates[category_template]
         
@@ -90,11 +83,21 @@ class ResponseAgent:
     ) -> str:
         # extract entities for templating
         customer_name = self._extract_customer_name(context)
+        # expected update based on priority
+        eta_map = {
+            Priority.CRITICAL: "Immediate to 24 hours.",
+            Priority.HIGH: "Within 2 to 3 days.",
+            Priority.MEDIUM: "Within 1 to 2 weeks.",
+            Priority.LOW: "Within 1 month or as resources permit."
+        }
         variables = {
             "name": customer_name or "valued customer",
             "priority": analysis.priority.name.lower(),
             "key_points": ", ".join(analysis.key_points[:3]),
             "expertise": analysis.required_expertise[0] if analysis.required_expertise else "our team",
+            "issue_type": analysis.category.name.lower(),
+            "eta": eta_map[analysis.priority],
+            "feedback_channel": "email",
             **context.get("customer_info", {})
         }
         
@@ -102,13 +105,14 @@ class ResponseAgent:
         try:
             return Template(template).render(**variables)
         except:
+            print("hi")
             return template  # fallback to raw template
         
     def _extract_customer_name(self, context: Dict[str, Any]) -> str:
         if "customer_name" in context.get("customer_info", {}):
             return context["customer_info"]["customer_name"]
         
-        # Fallback to NER extraction from ticket history
+        # fallback to NER extraction from ticket history
         if "previous_tickets" in context:
             doc = self.nlp("\n".join(context["previous_tickets"]))
             for ent in doc.ents:
@@ -116,69 +120,40 @@ class ResponseAgent:
                     return ent.text
         return ""
     
-    def _adjust_technical_level(
-        self,
-        text: str,
-        customer_info: Dict[str, Any]
-    ) -> str:
-        role = customer_info.get("role", "").lower()
-        if any(t in role for t in ["engineer", "developer", "cto"]):
-            return text  # Keep technical terms
-        
-        # Simplify technical jargon
-        for term in self.tech_jargon:
-            text = text.replace(term, self._explain_term(term))
-        return text
-    
-    def _explain_term(self, term: str) -> str:
-        explanations = {
-            "SLA": "service level agreement",
-            "API": "application interface",
-            "latency": "response time",
-            "throughput": "processing capacity"
-        }
-        return explanations.get(term, term)
-    
-    def _personalize_greeting(self, text: str, context: Dict[str, Any]) -> str:
-        if "{name}" not in text:
-            name = self._extract_customer_name(context)
-            if name:
-                return f"Dear {name},\n\n{text}"
-        return text
-    
     def _calculate_confidence(
         self,
         response: str,
         analysis: TicketAnalysis
     ) -> float:
-        # Base confidence on template match
+        # base confidence based on priority
         confidence = 0.7 if analysis.priority.value < 3 else 0.5
         
-        # Adjust based on text metrics
+        # adjust based on text metrics
         readability = textstat.flesch_reading_ease(response)
         confidence += 0.2 if readability > 60 else -0.1
         
-        # Sentiment alignment
+        # reduce confidence if response is negative 
         response_sentiment = TextBlob(response).sentiment.polarity
-        confidence += 0.1 * (1 - abs(analysis.sentiment - response_sentiment))
+        confidence += 0.1 * response_sentiment
         
         return max(0, min(1, confidence))
     
     def _requires_approval(
         self,
         response: str,
-        analysis: TicketAnalysis
+        analysis: TicketAnalysis,
+        confidence: float
     ) -> bool:
-        # High priority always requires approval
-        if analysis.priority == Priority.URGENT:
+        # high priority always requires approval
+        if analysis.priority == Priority.CRITICAL:
             return True
             
-        # Content-based approval triggers
+        # content based approval triggers
         if any(trigger in response.lower() for trigger in self.approval_triggers):
             return True
             
-        # Low confidence threshold
-        return self._calculate_confidence(response, analysis) < 0.6
+        # low confidence threshold
+        return confidence < 0.6
 
     def _generate_actions(
         self,
@@ -187,18 +162,18 @@ class ResponseAgent:
     ) -> List[str]:
         actions = []
         
-        # Category-specific actions
+        # category-specific actions
         if analysis.category == TicketCategory.TECHNICAL:
             actions.extend(["Run diagnostics", "Check server logs"])
         elif analysis.category == TicketCategory.BILLING:
             actions.append("Verify payment records")
             
-        # Priority-based actions
+        # priority-based actions
         if analysis.priority.value > 2:
             actions.append("Escalate to senior staff")
             
-        # Customer tier actions
-        if context.get("customer_info", {}).get("plan") == "Enterprise":
+        # customer tier actions
+        if context.get("customer_info", {}).get("plan", "user").lower() == "enterprise":
             actions.append("Schedule dedicated support call")
             
         return actions if actions else ["Monitor ticket status"]

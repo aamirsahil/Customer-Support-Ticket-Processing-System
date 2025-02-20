@@ -1,13 +1,32 @@
-from src.models import SupportTicket, TicketResolution
+from src.models import SupportTicket, TicketResolution, TicketAnalysis
 
-from TicketAnalysisAgent import TicketAnalysisAgent
-from ResponseAgent import ResponseAgent
+from src.agents.TicketAnalysisAgent import TicketAnalysisAgent
+from src.agents.ResponseAgent import ResponseAgent
+
+import logging
+import sys
+import asyncio
+import spacy
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type        
+from typing import List, Dict, Any
+
+# configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+nlp = spacy.load("en_core_web_sm")
 
 class TicketProcessor:
-    def __init__(self):
+    def __init__(self, max_retries: int = 3):
         self.analysis_agent = TicketAnalysisAgent()
         self.response_agent = ResponseAgent()
-        self.context = {}
+        self.context = {
+            "customer_history" : {},
+            "system_state": {
+                "last_processed": None,
+                "consecutive_failures": 0
+            }
+            }
+        self.max_retries = max_retries
 
     async def process_ticket(
         self,
@@ -25,52 +44,6 @@ class TicketProcessor:
            - API failures
            - Response quality issues
         """
-        pass
-
-import asyncio
-from dataclasses import dataclass
-from typing import Dict, Any, Optional
-import logging
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-@dataclass
-class SupportTicket:
-    id: str
-    subject: str
-    content: str
-    customer_info: Dict[str, Any]
-
-@dataclass
-class TicketResolution:
-    ticket_id: str
-    response_text: str
-    status: str  # "completed", "needs_approval", "failed"
-    error: Optional[str]
-    analysis: Optional[Any]
-    response: Optional[Any]
-    context_snapshot: Dict[str, Any]
-
-class TicketProcessor:
-    def __init__(self, max_retries: int = 3):
-        self.analysis_agent = TicketAnalysisAgent()
-        self.response_agent = ResponseAgent()
-        self.context = {
-            "customer_history": {},
-            "system_state": {
-                "last_processed": None,
-                "consecutive_failures": 0
-            }
-        }
-        self.max_retries = max_retries
-
-    async def process_ticket(
-        self,
-        ticket: SupportTicket
-    ) -> TicketResolution:
         resolution = TicketResolution(
             ticket_id=ticket.id,
             response_text="",
@@ -82,24 +55,26 @@ class TicketProcessor:
         )
 
         try:
-            # Validate input
+            # validate input
             self._validate_ticket(ticket)
 
-            # Update context
+            # update context
             self._update_context(ticket)
 
-            # Analysis phase with retries
+            # analysis phase with retries
             analysis = await self._retry_analysis(ticket)
             resolution.analysis = analysis
 
-            # Response generation
+            # response generation
             response = await self._generate_response(analysis, ticket)
+            print(response)
+            sys.exit()
             resolution.response = response
 
-            # Validate response
+            # validate response
             self._validate_response(response)
 
-            # Finalize
+            # finalize
             resolution.response_text = response.response_text
             resolution.status = "needs_approval" if response.requires_approval else "completed"
             self._update_system_state(success=True)
@@ -111,14 +86,12 @@ class TicketProcessor:
             return resolution
 
         return resolution
-
+    
     def _validate_ticket(self, ticket: SupportTicket):
         """Ensure required ticket fields exist"""
         if not ticket.content.strip():
             raise ValueError("Empty ticket content")
-        if not isinstance(ticket.customer_info, dict):
-            raise TypeError("Invalid customer info format")
-
+        
     def _update_context(self, ticket: SupportTicket):
         """Maintain customer history and system state"""
         customer_id = ticket.customer_info.get("customer_id")
@@ -136,11 +109,15 @@ class TicketProcessor:
         retry=retry_if_exception_type((RuntimeError, TimeoutError)),
         reraise=True
     )
-    async def _retry_analysis(self, ticket: SupportTicket):
+    async def _retry_analysis(self, ticket: SupportTicket) -> TicketAnalysis:
         """Retryable analysis operation"""
         try:
+            ticket_text = f"<|role|> {ticket.customer_info.get('role', '')} <|role|>"\
+                        + f"<|subject|> {ticket.subject} <|subject|>"\
+                        + f"<|content|> {ticket.content} <|content|>"
+            
             return await self.analysis_agent.analyze_ticket(
-                ticket.content,
+                ticket_text,
                 self._get_customer_history(ticket)
             )
         except Exception as e:
@@ -149,7 +126,7 @@ class TicketProcessor:
 
     def _get_customer_history(self, ticket: SupportTicket) -> Dict[str, Any]:
         """Retrieve relevant customer context"""
-        customer_id = ticket.customer_info.get("customer_id")
+        customer_id = ticket.customer_info.get("customer_id", "")
         return {
             "previous_tickets": self.context["customer_history"].get(customer_id, []),
             "customer_profile": ticket.customer_info
@@ -157,7 +134,7 @@ class TicketProcessor:
 
     async def _generate_response(
         self,
-        analysis: Any,
+        analysis: TicketAnalysis,
         ticket: SupportTicket
     ) -> Any:
         """Generate response with fallback"""
@@ -171,20 +148,43 @@ class TicketProcessor:
             logger.error(f"Response generation failed: {str(e)}")
             raise
 
-    def _load_templates(self) -> Dict[str, str]:
-        """Mock template loading - implement actual loading logic"""
-        return {
-            "technical_response": "Technical issue template...",
-            "billing_response": "Billing inquiry template..."
-        }
-
+    def _load_templates(self, path: str = "./src/config/templates.py") -> Dict[str, str]:
+        """Load templates from a Python module"""
+        try:
+            from importlib.util import spec_from_file_location, module_from_spec
+            spec = spec_from_file_location("templates", path)
+            module = module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module.RESPONSE_TEMPLATES
+        except Exception as e:
+            raise RuntimeError(f"Failed to load templates: {str(e)}")
+        
     def _get_response_context(self, ticket: SupportTicket) -> Dict[str, Any]:
         """Build response context"""
         return {
-            "customer_info": ticket.customer_info,
+            "customer_info": self._extract_customer_info(ticket),
             "system_status": self.context["system_state"],
             "previous_responses": self._get_previous_responses(ticket)
         }
+    
+    def _extract_customer_info(self, ticket: SupportTicket) -> Dict[str, str]:
+        return {
+            "customer_id" : ticket.customer_info.get("customer_id", 0),
+            "customer_name" : self._extract_customer_name(ticket)
+        }
+    
+    def _extract_customer_name(self, ticket: SupportTicket) -> str:
+        # process the text with spaCy
+        doc = nlp(ticket.content)
+
+        # extract person names using Named Entity Recognition (NER)
+        customer_names = [ent.text for ent in doc.ents if ent.label_ == 'PERSON']
+        return ', '.join(customer_names)
+    
+    def _get_previous_responses(self, ticket: SupportTicket) -> List[dict]:
+        """Retrieve historical responses for context"""
+        customer_id = ticket.customer_info.get("customer_id", 0)
+        return self.context["customer_history"].get(customer_id, [])[-3:] # last 3 tickets
 
     def _validate_response(self, response: Any):
         """Quality checks for generated response"""
@@ -193,7 +193,7 @@ class TicketProcessor:
             
         if response.confidence_score < 0.4:
             raise ValueError(f"Low confidence response: {response.confidence_score}")
-
+        
     def _update_system_state(self, success: bool):
         """Track system health metrics"""
         if success:
@@ -201,8 +201,3 @@ class TicketProcessor:
             self.context["system_state"]["last_processed"] = asyncio.get_event_loop().time()
         else:
             self.context["system_state"]["consecutive_failures"] += 1
-
-    def _get_previous_responses(self, ticket: SupportTicket) -> List[dict]:
-        """Retrieve historical responses for context"""
-        customer_id = ticket.customer_info.get("customer_id")
-        return self.context["customer_history"].get(customer_id, [])[-3:]  # Last 3 tickets
