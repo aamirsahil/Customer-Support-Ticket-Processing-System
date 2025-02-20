@@ -1,4 +1,3 @@
-```markdown
 # AI Customer Support Ticket Processing System
 
 An automated ticket processing system using AI agents for classification, prioritization, and response generation.
