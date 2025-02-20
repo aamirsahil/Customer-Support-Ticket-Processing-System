@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Submit New Ticket</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">Subject</label>
+            <input type="text" name="subject" class="form-control" required>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Content</label>
+            <textarea name="content" class="form-control" rows="4" required></textarea>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Company Type</label>
+            <select name="company_type" class="form-select" required>
+                <option value="startup">Startup</option>
+                <option value="sme">Small/Medium Enterprise</option>
+                <option value="enterprise">Large Enterprise</option>
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Role</label>
+            <input type="text" name="role" class="form-control" 
+                   placeholder="Optional (e.g., Manager, CTO)">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Submit Ticket</button>
+    </form>
+{% endblock %}

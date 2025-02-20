@@ -62,6 +62,7 @@ class ResponseAgent:
         analysis: TicketAnalysis,
         templates: Dict[str, str]
     ) -> str:
+        """Select Template based on suggested response type, use category value for fallback"""
         # exact match
         template_key = analysis.suggested_response_type
         if template_key in templates:
@@ -81,6 +82,7 @@ class ResponseAgent:
         analysis: TicketAnalysis,
         context: Dict[str, Any]
     ) -> str:
+        """Customize template based on customer information"""
         # extract entities for templating
         customer_name = self._extract_customer_name(context)
         # expected update based on priority
@@ -109,6 +111,7 @@ class ResponseAgent:
             return template  # fallback to raw template
         
     def _extract_customer_name(self, context: Dict[str, Any]) -> str:
+        """Extract customer name if present"""
         if "customer_name" in context.get("customer_info", {}):
             return context["customer_info"]["customer_name"]
         
@@ -125,6 +128,7 @@ class ResponseAgent:
         response: str,
         analysis: TicketAnalysis
     ) -> float:
+        """Calculate confidence based on readability and sentiment"""
         # base confidence based on priority
         confidence = 0.7 if analysis.priority.value < 3 else 0.5
         
@@ -144,6 +148,7 @@ class ResponseAgent:
         analysis: TicketAnalysis,
         confidence: float
     ) -> bool:
+        """Check if the response requires approval before sending"""
         # high priority always requires approval
         if analysis.priority == Priority.CRITICAL:
             return True
@@ -160,6 +165,7 @@ class ResponseAgent:
         analysis: TicketAnalysis,
         context: Dict[str, Any]
     ) -> List[str]:
+        """Generate suggested actions based on priority and category"""
         actions = []
         
         # category-specific actions

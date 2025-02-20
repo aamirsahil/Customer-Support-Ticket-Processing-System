@@ -6,7 +6,7 @@ import yake
 from transformers import pipeline
 
 kw_extractor = yake.KeywordExtractor()
-classifier = None#pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 class TicketAnalysisAgent:
     def __init__(self):
@@ -60,8 +60,7 @@ class TicketAnalysisAgent:
         clean_text = self._preprocess_text(ticket_content)
 
         # classify text
-        # category = self._classify_ticket(clean_text)
-        category = TicketCategory.ACCESS
+        category = self._classify_ticket(clean_text)
         # detect urgency
         urgency_indicators = self._detect_urgency(clean_text)
 
@@ -90,12 +89,14 @@ class TicketAnalysisAgent:
         )
 
     def _preprocess_text(self, text : str) -> str:
+        """Remove newline and multiple spaces"""
         clean_text = text.lower().replace("\n", " ").strip()
         # replace 2+ spaces with single space
         clean_text = re.sub(r' {2,}', ' ', clean_text)
         return clean_text
 
     def _classify_ticket(self, text : str) -> TicketCategory:
+        """Classify text into TextCategory"""
         labels = [label.value for label in TicketCategory]
         result = classifier(text, labels)
         
@@ -105,11 +106,9 @@ class TicketAnalysisAgent:
         
         # fallback to keyword matching
         return self._keyword_classification(text)
-    
-    def _detect_urgency(self, text: str) -> List[str]:
-        return list(set(self.urgency_pattern.findall(text)))
 
     def _keyword_classification(self, text: str) -> TicketCategory:
+        """Classify text based keyword occurance"""
         keywords = {
             TicketCategory.TECHNICAL: ["error", "bug", "crash", "slow"],
             TicketCategory.BILLING: ["invoice", "charge", "payment", "fee"],
@@ -122,12 +121,17 @@ class TicketAnalysisAgent:
                 return category
         return TicketCategory.TECHNICAL  # default
     
+    def _detect_urgency(self, text: str) -> List[str]:
+        """Check how many urgency pattern are in ticket"""
+        return list(set(self.urgency_pattern.findall(text)))
+
     def _calculate_priority(
             self,
             text: str,
             urgency_indicators: List[str],
             customer_info: Optional[dict]
         ) -> Priority:
+            """Calculate priority based on urgency, role and buisiness impact"""
             base_score = 1.0
             
             # urgency score added to base
@@ -152,6 +156,7 @@ class TicketAnalysisAgent:
             return Priority(final_score)
     
     def _extract_key_points(self, text: str) -> List[str]:
+        """Keypoints extracted with yake"""
         keywords = kw_extractor.extract_keywords(text)
         key_points = [keyword for keyword, score in sorted(keywords, key=lambda x: x[1], reverse=True)]
         return key_points[:10]  # return top 10 key points
@@ -160,6 +165,7 @@ class TicketAnalysisAgent:
         self,
         category: TicketCategory,
     ) -> List[str]:
+        """Determine expertise based on category value"""
         expertise_map = {
             TicketCategory.TECHNICAL: ["backend", "frontend", "devops"],
             TicketCategory.BILLING: ["finance", "billing_specialist"],
@@ -173,6 +179,7 @@ class TicketAnalysisAgent:
         category: TicketCategory,
         priority: Priority
     ) -> str:
+        """Generate suggested response"""
         if priority.value >= Priority.HIGH.value:
             return "immediate_call_back"
         return {

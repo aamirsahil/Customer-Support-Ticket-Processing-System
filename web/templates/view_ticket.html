@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Ticket Details: {{ ticket.ticket_id }}</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            Original Ticket
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">{{ original_ticket.subject }}</h5>
+            <p class="card-text">{{ original_ticket.content }}</p>
+            <p class="text-muted">
+                Company Type: {{ original_ticket.customer_info.company_type|title }}<br>
+                Submitted by: {{ original_ticket.customer_info.role|default('User') }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            AI Analysis Results
+        </div>
+        <div class="card-body">
+            <p><strong>Category:</strong> {{ ticket.analysis.category.name|title }}</p>
+            <p><strong>Priority:</strong> {{ ticket.analysis.priority.name|title }}</p>
+            <p><strong>Key Points:</strong></p>
+            <ul>
+                {% for point in ticket.analysis.key_points %}
+                <li>{{ point }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            Generated Response
+        </div>
+        <div class="card-body">
+            <pre>{{ ticket.response_text }}</pre>
+            <p class="text-muted">
+                Confidence: {{ (ticket.response.confidence_score * 100)|round(1) }}%<br>
+                Requires Approval: {{ 'Yes' if ticket.response.requires_approval else 'No' }}
+            </p>
+        </div>
+    </div>
+{% endblock %}

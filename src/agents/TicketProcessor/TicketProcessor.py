@@ -4,10 +4,8 @@ from src.agents.TicketAnalysisAgent import TicketAnalysisAgent
 from src.agents.ResponseAgent import ResponseAgent
 
 import logging
-import sys
 import asyncio
 import spacy
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type        
 from typing import List, Dict, Any
 
 # configure logging
@@ -55,24 +53,16 @@ class TicketProcessor:
         )
 
         try:
-            # validate input
-            self._validate_ticket(ticket)
-
             # update context
             self._update_context(ticket)
 
-            # analysis phase with retries
-            analysis = await self._retry_analysis(ticket)
+            # analysis generation
+            analysis = await self._generate_analysis(ticket)
             resolution.analysis = analysis
 
             # response generation
             response = await self._generate_response(analysis, ticket)
-            print(response)
-            sys.exit()
             resolution.response = response
-
-            # validate response
-            self._validate_response(response)
 
             # finalize
             resolution.response_text = response.response_text
@@ -86,11 +76,6 @@ class TicketProcessor:
             return resolution
 
         return resolution
-    
-    def _validate_ticket(self, ticket: SupportTicket):
-        """Ensure required ticket fields exist"""
-        if not ticket.content.strip():
-            raise ValueError("Empty ticket content")
         
     def _update_context(self, ticket: SupportTicket):
         """Maintain customer history and system state"""
@@ -103,14 +88,8 @@ class TicketProcessor:
                 "subject": ticket.subject
             })
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((RuntimeError, TimeoutError)),
-        reraise=True
-    )
-    async def _retry_analysis(self, ticket: SupportTicket) -> TicketAnalysis:
-        """Retryable analysis operation"""
+    async def _generate_analysis(self, ticket: SupportTicket) -> TicketAnalysis:
+        """Analyse Ticket"""
         try:
             ticket_text = f"<|role|> {ticket.customer_info.get('role', '')} <|role|>"\
                         + f"<|subject|> {ticket.subject} <|subject|>"\
@@ -185,14 +164,6 @@ class TicketProcessor:
         """Retrieve historical responses for context"""
         customer_id = ticket.customer_info.get("customer_id", 0)
         return self.context["customer_history"].get(customer_id, [])[-3:] # last 3 tickets
-
-    def _validate_response(self, response: Any):
-        """Quality checks for generated response"""
-        if not response.response_text.strip():
-            raise ValueError("Empty response generated")
-            
-        if response.confidence_score < 0.4:
-            raise ValueError(f"Low confidence response: {response.confidence_score}")
         
     def _update_system_state(self, success: bool):
         """Track system health metrics"""

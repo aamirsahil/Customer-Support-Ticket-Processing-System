@@ -49,12 +49,11 @@ async def test_integration():
     print(f"Category: {result.analysis.category.name}")
     print(f"Priority: {result.analysis.priority.name}")
     print(f"Key Points: {result.analysis.key_points}")
-    print(f"Business Impact: {result.analysis.business_impact}")
     
     print(f"\nGenerated Response:")
     print(f"{result.response_text}")
     
-    print(f"\nMetadata:")
+    print(f"\nAdditional information:")
     print(f"Confidence: {result.response.confidence_score:.2f}")
     print(f"Requires Approval: {result.response.requires_approval}")
     print(f"Suggested Actions: {result.response.suggested_actions}")

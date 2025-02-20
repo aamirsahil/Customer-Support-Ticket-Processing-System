@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Processed Tickets</h2>
+    <a href="{{ url_for('add_ticket') }}" class="btn btn-primary mb-3">Add New Ticket</a>
+    
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>{{ ticket.ticket_id }}</td>
+                <td>{{ ticket.analysis.subject }}</td>
+                <td>
+                    <span class="badge bg-{{ 'success' if ticket.status == 'completed' else 'warning' }}">
+                        {{ ticket.status }}
+                    </span>
+                </td>
+                <td>{{ ticket.analysis.priority.name }}</td>
+                <td>
+                    <a href="{{ url_for('view_ticket', ticket_id=ticket.ticket_id) }}" 
+                       class="btn btn-sm btn-info">
+                        View Details
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
